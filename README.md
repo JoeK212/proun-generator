@@ -25,6 +25,11 @@ Two generation modes:
 - **Seed** — set directly, or click Generate for a random one
 - **Density** — controls shape/line/cell count
 - **Palette** — four variants per style (classic, steel, olive, mono)
+- **Recolor** (Mondrian only) — reshuffles which cells get red/blue/yellow
+  and cycles to a different palette, while keeping the exact same grid
+  subdivision. Useful for exploring color variations on a composition you
+  like without losing the structure — Generate randomizes both grid and
+  color together, Recolor only touches color.
 - **Auto-generate** — cycles through new plates on a timer
 - **Save SVG / Save PNG** — export the current plate
 

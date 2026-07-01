@@ -9,6 +9,27 @@
   v1.1.0 — Added auto-generate cycling mode with interval control.
   v1.2.0 — Added Mondrian grid-subdivision style as a second generation mode,
            style toggle, per-style palette mapping.
+  v1.3.0 — Decoupled Mondrian's grid subdivision from its color assignment
+           (previously shared one RNG stream, so any change reshuffled
+           both together). Added a Recolor button that reshuffles which
+           cells get red/blue/yellow while keeping the exact same grid —
+           lets you explore color variations on a composition you like
+           without losing the structure. Generate still randomizes both.
+  v1.3.1 — Mondrian plates were reading as too monochrome: colored-cell
+           probability doubled (16%→32%), black-cell probability raised
+           slightly (4%→6%). Recolor now also cycles to a different
+           palette each click (previously only reshuffled placement
+           within the currently-selected palette), with the swatch UI
+           kept in sync so the visibly active swatch always matches what
+           actually rendered.
+  v1.3.2 — Fixed "COMPOSITION 66539"-style plate names getting silently
+           cut off in the panel instead of wrapping. Cause: the space
+           between the plate label and number was a non-breaking space
+           (&nbsp;), which explicitly blocks the browser from wrapping
+           there — harmless for the short "PROUN" label but "COMPOSITION"
+           plus a 5-digit seed routinely overflowed the fixed 300px panel
+           width with nowhere else to break. Switched to a normal space
+           and added overflow-wrap as a safety net for future labels.
 -->
 <html lang="en">
 <head>
@@ -155,6 +176,8 @@
     font-size:28px;
     letter-spacing:1px;
     color:var(--panel-fg);
+    line-height:1.15;
+    overflow-wrap:break-word;
   }
   .plate-no span{color:var(--red);}
   button{
@@ -270,7 +293,7 @@
     <aside class="panel">
       <div class="panel-section">
         <div class="label-row"><span>Plate</span><span id="dateStamp"></span></div>
-        <div class="plate-no"><span id="plateLabel">PROUN</span>&nbsp;<span id="plateNo">000</span></div>
+        <div class="plate-no"><span id="plateLabel">PROUN</span> <span id="plateNo">000</span></div>
       </div>
 
       <div class="panel-section">
@@ -283,6 +306,7 @@
 
       <div class="panel-section">
         <button class="btn-primary" id="regenBtn">Generate new plate</button>
+        <button class="btn-secondary" id="recolorBtn" style="margin-top:8px; display:none;">Recolor (same grid)</button>
         <div class="btn-row" style="margin-top:8px;">
           <button class="btn-secondary" id="downloadSvg">Save SVG</button>
           <button class="btn-secondary" id="downloadPng">Save PNG</button>
@@ -326,7 +350,7 @@
 
 <script>
 (function(){
-  const APP_VERSION = 'v1.2.0';
+  const APP_VERSION = 'v1.3.2';
   const NS = "http://www.w3.org/2000/svg";
   const svg = document.getElementById('canvas');
   const seedInput = document.getElementById('seedInput');
@@ -339,6 +363,7 @@
 
   let currentPalette = 'classic';
   let currentStyle = 'proun';
+  let mondrianColorSeed = 1;
 
   const PALETTES = {
     classic: { a:'#C1272D', b:'#14110F', c:'#A79A6D', d:'#7C8A93', bg:'#EBE6D9', line:'#B8AF9C' },
@@ -507,23 +532,15 @@
     svg.appendChild(stamp);
   }
 
-  function generateMondrian(seed, density, paletteKey){
+  function mondrianGrid(seed, density){
     const rnd = mulberry32(seed);
-    const pal = MONDRIAN_PALETTES[paletteKey];
     const rand = (min,max) => min + rnd()*(max-min);
-    const pick = (arr) => arr[Math.floor(rnd()*arr.length)];
 
-    while(svg.firstChild) svg.removeChild(svg.firstChild);
-
-    svg.appendChild(el('rect', {x:0,y:0,width:1000,height:1000,fill:pal.bg}));
-
-    // recursive-ish grid subdivision, biased toward splitting larger cells
     let cells = [{x:0,y:0,w:1000,h:1000}];
     const targetCells = 5 + density * 2;
     let guard = 0;
     while(cells.length < targetCells && guard < 300){
       guard++;
-      // weighted pick by area
       const total = cells.reduce((s,c) => s + c.w*c.h, 0);
       let t = rnd() * total, idx = 0;
       for(let i=0;i<cells.length;i++){ t -= cells[i].w*cells[i].h; if(t<=0){ idx=i; break; } idx = i; }
@@ -542,14 +559,34 @@
           {x:c.x, y:splitY, w:c.w, h:c.y+c.h-splitY});
       }
     }
+    return cells;
+  }
 
+  // Independent RNG stream, decorrelated from the grid seed, so recoloring
+  // never changes the grid subdivision itself.
+  function mondrianColors(cells, colorSeed, paletteKey){
+    const rnd = mulberry32(colorSeed * 6151 + 29);
+    const pick = (arr) => arr[Math.floor(rnd()*arr.length)];
+    const pal = MONDRIAN_PALETTES[paletteKey];
     const colorPool = [pal.red, pal.blue, pal.yellow];
-    cells.forEach(c => {
-      let fill = pal.bg;
+    return cells.map(() => {
       const roll = rnd();
-      if(roll < 0.16) fill = pick(colorPool);
-      else if(roll < 0.20) fill = pal.black;
-      svg.appendChild(el('rect', {x:c.x, y:c.y, width:c.w, height:c.h, fill}));
+      if(roll < 0.32) return pick(colorPool);
+      if(roll < 0.38) return pal.black;
+      return pal.bg;
+    });
+  }
+
+  function generateMondrian(seed, density, paletteKey, colorSeed){
+    const pal = MONDRIAN_PALETTES[paletteKey];
+    while(svg.firstChild) svg.removeChild(svg.firstChild);
+    svg.appendChild(el('rect', {x:0,y:0,width:1000,height:1000,fill:pal.bg}));
+
+    const cells = mondrianGrid(seed, density);
+    const fills = mondrianColors(cells, colorSeed, paletteKey);
+
+    cells.forEach((c, i) => {
+      svg.appendChild(el('rect', {x:c.x, y:c.y, width:c.w, height:c.h, fill:fills[i]}));
     });
 
     const lineWidth = 9;
@@ -570,7 +607,7 @@
     const seed = parseInt(seedInput.value) || 1;
     const density = parseInt(densitySlider.value);
     if(currentStyle === 'mondrian'){
-      generateMondrian(seed, density, currentPalette);
+      generateMondrian(seed, density, currentPalette, mondrianColorSeed);
       plateLabel.textContent = 'COMPOSITION';
     } else {
       generate(seed, density, currentPalette);
@@ -581,21 +618,35 @@
 
   document.getElementById('regenBtn').addEventListener('click', () => {
     seedInput.value = Math.floor(Math.random()*99999) + 1;
+    mondrianColorSeed = Math.floor(Math.random()*99999) + 1;
     refresh();
   });
 
   const styleProunBtn = document.getElementById('styleProun');
   const styleMondrianBtn = document.getElementById('styleMondrian');
+  const recolorBtn = document.getElementById('recolorBtn');
   styleProunBtn.addEventListener('click', () => {
     currentStyle = 'proun';
     styleProunBtn.classList.add('active');
     styleMondrianBtn.classList.remove('active');
+    recolorBtn.style.display = 'none';
     refresh();
   });
   styleMondrianBtn.addEventListener('click', () => {
     currentStyle = 'mondrian';
     styleMondrianBtn.classList.add('active');
     styleProunBtn.classList.remove('active');
+    recolorBtn.style.display = 'block';
+    refresh();
+  });
+
+  recolorBtn.addEventListener('click', () => {
+    if(autoTimer) stopAuto();
+    mondrianColorSeed = Math.floor(Math.random()*99999) + 1;
+    const paletteKeys = ['classic','steel','olive','mono'];
+    const otherKeys = paletteKeys.filter(k => k !== currentPalette);
+    currentPalette = otherKeys[Math.floor(Math.random()*otherKeys.length)];
+    swatches.forEach(s => s.classList.toggle('active', s.dataset.palette === currentPalette));
     refresh();
   });
 
