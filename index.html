@@ -30,6 +30,20 @@
            plus a 5-digit seed routinely overflowed the fixed 300px panel
            width with nowhere else to break. Switched to a normal space
            and added overflow-wrap as a safety net for future labels.
+  v1.3.3 — Removed solid black as a possible Mondrian cell fill. In actual
+           Neoplasticism grid paintings, black is reserved for the grid
+           lines only — cells are white or one of red/blue/yellow, never
+           filled black. Cells now roll only between colored (32%) and
+           background; the black-fill branch is gone entirely.
+  v1.4.0 — Added hover tooltips on every panel control (style/palette
+           buttons, Generate, Recolor, Save SVG/PNG, sliders, seed input).
+           CSS-only via a [data-tip] attribute + ::before/::after
+           pseudo-elements, styled to match the panel (cream box, ink
+           text, monospace) rather than relying on the browser's native
+           title-attribute tooltip. All tooltips appear above their
+           control, including the palette swatches near the panel's
+           bottom edge — consistent placement, and avoids clipping past
+           the panel boundary that showing them below would risk there.
 -->
 <html lang="en">
 <head>
@@ -48,6 +62,48 @@
     --panel-fg:#EBE6D9;
   }
   *{box-sizing:border-box;}
+  [data-tip]{position:relative;}
+  [data-tip]::after{
+    content:attr(data-tip);
+    position:absolute;
+    bottom:calc(100% + 8px);
+    left:50%;
+    transform:translateX(-50%) translateY(4px);
+    background:var(--cream);
+    color:var(--ink);
+    font-family:"Courier New",monospace;
+    font-size:10.5px;
+    letter-spacing:0.3px;
+    line-height:1.4;
+    white-space:nowrap;
+    padding:6px 10px;
+    border:1px solid var(--ink);
+    pointer-events:none;
+    opacity:0;
+    z-index:20;
+    transition:opacity 0.12s ease, transform 0.12s ease;
+  }
+  [data-tip]::before{
+    content:"";
+    position:absolute;
+    bottom:100%;
+    left:50%;
+    transform:translateX(-50%) translateY(3px);
+    border:5px solid transparent;
+    border-top-color:var(--ink);
+    opacity:0;
+    pointer-events:none;
+    z-index:21;
+    transition:opacity 0.12s ease;
+  }
+  [data-tip]:hover::after,
+  [data-tip]:hover::before{
+    opacity:1;
+    transition-delay:0.35s;
+  }
+  [data-tip]:hover::after{
+    transform:translateX(-50%) translateY(0);
+  }
   html,body{margin:0;padding:0;}
   body{
     background:var(--cream);
@@ -299,43 +355,43 @@
       <div class="panel-section">
         <label class="field">Style</label>
         <div class="btn-row">
-          <button class="btn-secondary active" id="styleProun">Proun</button>
-          <button class="btn-secondary" id="styleMondrian">Mondrian</button>
+          <button class="btn-secondary active" id="styleProun" data-tip="Circle-slice + wedge compositions">Proun</button>
+          <button class="btn-secondary" id="styleMondrian" data-tip="Rectilinear grid subdivision">Mondrian</button>
         </div>
       </div>
 
       <div class="panel-section">
-        <button class="btn-primary" id="regenBtn">Generate new plate</button>
-        <button class="btn-secondary" id="recolorBtn" style="margin-top:8px; display:none;">Recolor (same grid)</button>
+        <button class="btn-primary" id="regenBtn" data-tip="New grid AND new colors">Generate new plate</button>
+        <button class="btn-secondary" id="recolorBtn" style="margin-top:8px; display:none;" data-tip="Same grid, new colors + palette">Recolor (same grid)</button>
         <div class="btn-row" style="margin-top:8px;">
-          <button class="btn-secondary" id="downloadSvg">Save SVG</button>
-          <button class="btn-secondary" id="downloadPng">Save PNG</button>
+          <button class="btn-secondary" id="downloadSvg" data-tip="Export as vector (.svg)">Save SVG</button>
+          <button class="btn-secondary" id="downloadPng" data-tip="Export as image, 2000x2000px">Save PNG</button>
         </div>
       </div>
 
       <div class="panel-section">
         <label class="field">Auto-generate — <span id="intervalVal">4</span>s</label>
-        <input type="range" id="intervalSlider" min="1" max="15" value="4">
-        <button class="btn-secondary" id="autoToggle" style="margin-top:10px;">Start auto-generate</button>
+        <input type="range" id="intervalSlider" min="1" max="15" value="4" data-tip="Seconds between each new plate">
+        <button class="btn-secondary" id="autoToggle" style="margin-top:10px;" data-tip="Cycle through new plates automatically">Start auto-generate</button>
       </div>
 
       <div class="panel-section">
         <label class="field">Seed</label>
-        <input type="number" id="seedInput" min="1" max="999999" value="1">
+        <input type="number" id="seedInput" min="1" max="999999" value="1" data-tip="Same seed + density = same plate, always">
       </div>
 
       <div class="panel-section">
         <label class="field">Density — <span id="densityVal">6</span></label>
-        <input type="range" id="densitySlider" min="1" max="10" value="6">
+        <input type="range" id="densitySlider" min="1" max="10" value="6" data-tip="Shape / line / cell count">
       </div>
 
       <div class="panel-section">
         <label class="field">Palette</label>
         <div class="swatches">
-          <div class="swatch swatch-classic active" data-palette="classic" title="Classic"></div>
-          <div class="swatch swatch-steel" data-palette="steel" title="Steel"></div>
-          <div class="swatch swatch-olive" data-palette="olive" title="Olive"></div>
-          <div class="swatch swatch-mono" data-palette="mono" title="Mono"></div>
+          <div class="swatch swatch-classic active" data-palette="classic" data-tip="True primaries — closest to the real thing"></div>
+          <div class="swatch swatch-steel" data-palette="steel" data-tip="Desaturated, cooler, more industrial"></div>
+          <div class="swatch swatch-olive" data-palette="olive" data-tip="Warmer, earthier, cream background"></div>
+          <div class="swatch swatch-mono" data-palette="mono" data-tip="No hue — pure light/dark tonal study"></div>
         </div>
       </div>
 
@@ -350,7 +406,7 @@
 
 <script>
 (function(){
-  const APP_VERSION = 'v1.3.2';
+  const APP_VERSION = 'v1.4.0';
   const NS = "http://www.w3.org/2000/svg";
   const svg = document.getElementById('canvas');
   const seedInput = document.getElementById('seedInput');
@@ -572,7 +628,6 @@
     return cells.map(() => {
       const roll = rnd();
       if(roll < 0.32) return pick(colorPool);
-      if(roll < 0.38) return pal.black;
       return pal.bg;
     });
   }
