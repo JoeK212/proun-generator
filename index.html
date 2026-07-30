@@ -2,48 +2,6 @@
 <!--
   KONSTRUKTOR — Generative Proun / Mondrian Compositions
   Joe.K · axisbim.io
-
-  CHANGELOG
-  v1.0.0 — Initial build: seeded Proun-style generator (circle-slice, wedge
-           beams, construction lines, marker dots), 4 palettes, SVG/PNG export.
-  v1.1.0 — Added auto-generate cycling mode with interval control.
-  v1.2.0 — Added Mondrian grid-subdivision style as a second generation mode,
-           style toggle, per-style palette mapping.
-  v1.3.0 — Decoupled Mondrian's grid subdivision from its color assignment
-           (previously shared one RNG stream, so any change reshuffled
-           both together). Added a Recolor button that reshuffles which
-           cells get red/blue/yellow while keeping the exact same grid —
-           lets you explore color variations on a composition you like
-           without losing the structure. Generate still randomizes both.
-  v1.3.1 — Mondrian plates were reading as too monochrome: colored-cell
-           probability doubled (16%→32%), black-cell probability raised
-           slightly (4%→6%). Recolor now also cycles to a different
-           palette each click (previously only reshuffled placement
-           within the currently-selected palette), with the swatch UI
-           kept in sync so the visibly active swatch always matches what
-           actually rendered.
-  v1.3.2 — Fixed "COMPOSITION 66539"-style plate names getting silently
-           cut off in the panel instead of wrapping. Cause: the space
-           between the plate label and number was a non-breaking space
-           (&nbsp;), which explicitly blocks the browser from wrapping
-           there — harmless for the short "PROUN" label but "COMPOSITION"
-           plus a 5-digit seed routinely overflowed the fixed 300px panel
-           width with nowhere else to break. Switched to a normal space
-           and added overflow-wrap as a safety net for future labels.
-  v1.3.3 — Removed solid black as a possible Mondrian cell fill. In actual
-           Neoplasticism grid paintings, black is reserved for the grid
-           lines only — cells are white or one of red/blue/yellow, never
-           filled black. Cells now roll only between colored (32%) and
-           background; the black-fill branch is gone entirely.
-  v1.4.0 — Added hover tooltips on every panel control (style/palette
-           buttons, Generate, Recolor, Save SVG/PNG, sliders, seed input).
-           CSS-only via a [data-tip] attribute + ::before/::after
-           pseudo-elements, styled to match the panel (cream box, ink
-           text, monospace) rather than relying on the browser's native
-           title-attribute tooltip. All tooltips appear above their
-           control, including the palette swatches near the panel's
-           bottom edge — consistent placement, and avoids clipping past
-           the panel boundary that showing them below would risk there.
 -->
 <html lang="en">
 <head>
