@@ -2,6 +2,57 @@
 <!--
   KONSTRUKTOR — Generative Proun / Mondrian Compositions
   Joe.K · axisbim.io
+
+  CHANGELOG
+  v1.0.0 — Initial build: seeded Proun-style generator (circle-slice, wedge
+           beams, construction lines, marker dots), 4 palettes, SVG/PNG export.
+  v1.1.0 — Added auto-generate cycling mode with interval control.
+  v1.2.0 — Added Mondrian grid-subdivision style as a second generation mode,
+           style toggle, per-style palette mapping.
+  v1.3.0 — Decoupled Mondrian's grid subdivision from its color assignment
+           (previously shared one RNG stream, so any change reshuffled
+           both together). Added a Recolor button that reshuffles which
+           cells get red/blue/yellow while keeping the exact same grid —
+           lets you explore color variations on a composition you like
+           without losing the structure. Generate still randomizes both.
+  v1.3.1 — Mondrian plates were reading as too monochrome: colored-cell
+           probability doubled (16%→32%), black-cell probability raised
+           slightly (4%→6%). Recolor now also cycles to a different
+           palette each click (previously only reshuffled placement
+           within the currently-selected palette), with the swatch UI
+           kept in sync so the visibly active swatch always matches what
+           actually rendered.
+  v1.3.2 — Fixed "COMPOSITION 66539"-style plate names getting silently
+           cut off in the panel instead of wrapping. Cause: the space
+           between the plate label and number was a non-breaking space
+           (&nbsp;), which explicitly blocks the browser from wrapping
+           there — harmless for the short "PROUN" label but "COMPOSITION"
+           plus a 5-digit seed routinely overflowed the fixed 300px panel
+           width with nowhere else to break. Switched to a normal space
+           and added overflow-wrap as a safety net for future labels.
+  v1.3.3 — Removed solid black as a possible Mondrian cell fill. In actual
+           Neoplasticism grid paintings, black is reserved for the grid
+           lines only — cells are white or one of red/blue/yellow, never
+           filled black. Cells now roll only between colored (32%) and
+           background; the black-fill branch is gone entirely.
+  v1.4.0 — Added hover tooltips on every panel control (style/palette
+           buttons, Generate, Recolor, Save SVG/PNG, sliders, seed input).
+           CSS-only via a [data-tip] attribute + ::before/::after
+           pseudo-elements, styled to match the panel (cream box, ink
+           text, monospace) rather than relying on the browser's native
+           title-attribute tooltip. All tooltips appear above their
+           control, including the palette swatches near the panel's
+           bottom edge — consistent placement, and avoids clipping past
+           the panel boundary that showing them below would risk there.
+  v1.4.1 — Added a phone-width gate (below 767px): full-screen message
+           in place of the app, matching the pattern already used on
+           Modulor Massing/Mondrian. Pure CSS, no JS — .mobile-gate is
+           display:none by default and flipped to flex only inside the
+           @media(max-width:767px) block, which simultaneously sets
+           .app to display:none. Tablets (768px+) are unaffected and
+           still get the existing 820px-breakpoint stacked layout. Icon
+           uses Konstruktor's own classic-palette hex values rather than
+           copying another project's icon colors verbatim.
 -->
 <html lang="en">
 <head>
@@ -280,9 +331,83 @@
     .panel{width:auto;border-left:none;border-top:4px solid var(--ink);}
     .stage-wrap{padding:24px;}
   }
+
+  .mobile-gate{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:#141110;
+    color:#EBE6D9;
+    z-index:999;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:40px 32px;
+    font-family:"Helvetica Neue",sans-serif;
+  }
+  .mobile-gate-icon{
+    width:120px;
+    height:120px;
+    position:relative;
+    border:1px solid rgba(235,230,217,0.25);
+    margin-bottom:28px;
+  }
+  .mobile-gate-icon div{position:absolute;}
+  .mgi-red{left:3%;top:3%;width:54%;height:55%;background:#D40920;}
+  .mgi-yellow{left:60%;top:3%;width:37%;height:24%;background:#F9D616;}
+  .mgi-gray1{left:60%;top:30%;width:37%;height:28%;background:#3A3733;}
+  .mgi-blue{left:3%;top:61%;width:12%;height:36%;background:#1356A2;}
+  .mgi-gray2{left:18%;top:61%;width:79%;height:36%;background:#3A3733;}
+  .mobile-gate-rule{
+    width:70px;
+    height:1px;
+    background:rgba(235,230,217,0.35);
+    margin:22px 0;
+  }
+  .mobile-gate-title{
+    font-weight:900;
+    font-size:24px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    margin:0;
+  }
+  .mobile-gate-body{
+    font-weight:300;
+    font-size:16px;
+    line-height:1.6;
+    color:#9a9488;
+    max-width:340px;
+    margin:22px 0 0;
+  }
+  .mobile-gate-footer{
+    font-family:"Courier New",monospace;
+    font-size:13px;
+    letter-spacing:1px;
+    color:#7a7568;
+  }
+  .mobile-gate-footer a{color:#7a7568;}
+  @media (max-width:767px){
+    .mobile-gate{display:flex;}
+    .app{display:none;}
+  }
 </style>
 </head>
 <body>
+<div class="mobile-gate">
+  <div class="mobile-gate-icon">
+    <div class="mgi-red"></div>
+    <div class="mgi-yellow"></div>
+    <div class="mgi-gray1"></div>
+    <div class="mgi-blue"></div>
+    <div class="mgi-gray2"></div>
+  </div>
+  <div class="mobile-gate-rule"></div>
+  <h1 class="mobile-gate-title">Konstruktor</h1>
+  <p class="mobile-gate-body">This tool requires a tablet or desktop display for the two-panel layout. Please open it on a larger screen.</p>
+  <div class="mobile-gate-rule"></div>
+  <div class="mobile-gate-footer">Joe.K &nbsp;·&nbsp; <a href="https://axisbim.io" target="_blank" rel="noopener">axisbim.io</a></div>
+</div>
 <div class="app">
   <header>
     <div class="wordmark">
@@ -364,7 +489,7 @@
 
 <script>
 (function(){
-  const APP_VERSION = 'v1.4.0';
+  const APP_VERSION = 'v1.4.1';
   const NS = "http://www.w3.org/2000/svg";
   const svg = document.getElementById('canvas');
   const seedInput = document.getElementById('seedInput');
